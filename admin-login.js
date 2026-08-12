@@ -1,126 +1,445 @@
-const firebaseConfig = {
-  apiKey: "AIzaSyDY5F84tiRyDLNPBaBGpO5giwxlJ4q27Cg",
-  authDomain: "wetrendingteam-1f8ce.firebaseapp.com",
-  projectId: "wetrendingteam-1f8ce",
-  storageBucket: "wetrendingteam-1f8ce.firebasestorage.app",
-  messagingSenderId: "1072737815830",
-  appId: "1:1072737815830:web:4fce8aa6e88680404e1437",
-  measurementId: "G-21NRQ5TYPB"
-};
+// ==========================================
+// WETrendingTeam
+// Admin Login
+// ==========================================
 
-/* WETrendingTeam ADMIN LOGIN */
+
+// ==========================================
+// FIREBASE APP
+// ==========================================
+
+import {
+app
+} from "./firebase-config.js";
+
+
+// ==========================================
+// FIREBASE AUTHENTICATION
+// ==========================================
+
+import {
+getAuth,
+signInWithEmailAndPassword,
+setPersistence,
+browserLocalPersistence,
+browserSessionPersistence,
+sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+
+// ==========================================
+// INITIALIZE AUTH
+// ==========================================
+
+const auth = getAuth(app);
+
+
+// ==========================================
+// ADMIN EMAIL
+// ==========================================
+//
+// This is the authorized Admin email.
+// Do NOT change this unless the Firebase
+// Admin account itself changes.
+//
+
 const ADMIN_EMAIL = "wetrendingteam@gmail.com";
 
+
+// ==========================================
+// HTML ELEMENTS
+// ==========================================
+
+const loginForm =
+document.getElementById("adminLoginForm");
+
+const emailInput =
+document.getElementById("adminEmail");
+
+const passwordInput =
+document.getElementById("adminPassword");
+
+const rememberInput =
+document.getElementById("rememberMe");
+
+const loginButton =
+document.getElementById("adminLoginButton");
+
+const statusBox =
+document.getElementById("adminLoginStatus");
+
+const resetButton =
+document.getElementById("adminResetLink");
+
+
+// ==========================================
+// STATUS MESSAGE
+// ==========================================
+
 function status(message, error = false) {
-  const el = document.getElementById("adminLoginStatus");
-  if (!el) return;
-  el.textContent = message;
-  el.style.color = error ? "#ff5a5a" : "";
+
+if (!statusBox) {
+return;
 }
+
+statusBox.textContent = message;
+
+statusBox.style.color = error
+? "#b42318"
+: "#475467";
+}
+
+
+// ==========================================
+// FIREBASE ERROR TRANSLATOR
+// ==========================================
 
 function friendlyError(error) {
-  const code = error && error.code ? error.code : "";
-  if (code === "auth/invalid-credential" || code === "auth/wrong-password")
-    return "Incorrect Admin email or password.";
-  if (code === "auth/user-not-found")
-    return "Admin account was not found.";
-  if (code === "auth/operation-not-allowed")
-    return "Email/Password sign-in is disabled in Firebase.";
-  if (code === "auth/unauthorized-domain")
-    return "This website is not authorized in Firebase.";
-  if (code === "auth/network-request-failed")
-    return "Network error. Check your connection.";
-  if (code === "auth/too-many-requests")
-    return "Too many login attempts. Try again later.";
-  if (code === "auth/user-disabled")
-    return "The Admin account is disabled.";
-  return (error && error.message) || "Login failed.";
+
+switch (error.code) {
+
+case "auth/invalid-email":
+return "The email address is not valid.";
+
+case "auth/user-not-found":
+return "No Firebase account was found with this email.";
+
+case "auth/wrong-password":
+return "The password is incorrect.";
+
+case "auth/invalid-credential":
+return "The email or password is incorrect.";
+
+case "auth/too-many-requests":
+return "Too many login attempts. Please wait and try again.";
+
+case "auth/user-disabled":
+return "This Firebase account has been disabled.";
+
+case "auth/network-request-failed":
+return "Network error. Check your internet connection.";
+
+case "auth/operation-not-allowed":
+return "Email/password login is not enabled in Firebase.";
+
+case "auth/unauthorized-domain":
+return "This GitHub Pages domain is not authorized in Firebase.";
+
+case "auth/internal-error":
+return "Firebase returned an internal error. Please try again.";
+
+default:
+return error.message ||
+"Login failed. Please try again.";
+}
 }
 
-window.addEventListener("error", (e) => {
-  console.error(e.error || e.message);
-  status("Login system error. Please refresh and try again.", true);
-});
 
-document.addEventListener("DOMContentLoaded", () => {
-  const form = document.getElementById("adminLoginForm");
-  const button = document.getElementById("adminLoginButton");
-  const reset = document.getElementById("adminResetLink");
+// ==========================================
+// CHECK REQUIRED HTML ELEMENTS
+// ==========================================
 
-  if (!form || !button) {
-    status("Admin login form could not be loaded.", true);
-    return;
-  }
+if (!loginForm) {
 
-  status("Login system ready.");
+console.error(
+"Admin Login Error: #adminLoginForm was not found."
+);
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+} else {
 
-    const email = document.getElementById("adminEmail").value.trim().toLowerCase();
-    const password = document.getElementById("adminPassword").value;
-    const remember = document.getElementById("adminRemember").checked;
 
-    if (email !== ADMIN_EMAIL) {
-      status("Use the Admin email address.", true);
-      return;
-    }
+// ==========================================
+// LOGIN
+// ==========================================
 
-    if (!password) {
-      status("Enter your password.", true);
-      return;
-    }
+loginForm.addEventListener(
+"submit",
+async (event) => {
 
-    button.disabled = true;
-    button.textContent = "Signing in…";
-    status("Connecting to Firebase…");
+event.preventDefault();
 
-    try {
-      const auth = firebase.auth();
 
-      await auth.setPersistence(
-        remember
-          ? firebase.auth.Auth.Persistence.LOCAL
-          : firebase.auth.Auth.Persistence.SESSION
-      );
+// --------------------------------------
+// GET EMAIL
+// --------------------------------------
 
-      const result = await auth.signInWithEmailAndPassword(ADMIN_EMAIL, password);
+const email =
+emailInput
+? emailInput.value.trim().toLowerCase()
+: "";
 
-      if (!result.user || (result.user.email || "").toLowerCase() !== ADMIN_EMAIL) {
-        await auth.signOut();
-        throw new Error("This Firebase account is not authorized for Admin Login.");
-      }
 
-      localStorage.setItem("userEmail", ADMIN_EMAIL);
-      localStorage.setItem("userRole", "admin");
-      localStorage.setItem("userUID", result.user.uid);
+// --------------------------------------
+// GET PASSWORD
+// --------------------------------------
 
-      status("Login successful. Opening Admin Panel…");
-      window.location.href = "admin-dashboard.html";
-    } catch (error) {
-      console.error("Admin login:", error);
-      status(friendlyError(error), true);
-    } finally {
-      button.disabled = false;
-      button.textContent = "Login";
-    }
-  });
+const password =
+passwordInput
+? passwordInput.value
+: "";
 
-  reset?.addEventListener("click", async (e) => {
-    e.preventDefault();
-    const email = document.getElementById("adminEmail").value.trim().toLowerCase();
 
-    if (email !== ADMIN_EMAIL) {
-      status("Use the Admin email address.", true);
-      return;
-    }
+// --------------------------------------
+// VALIDATION
+// --------------------------------------
 
-    try {
-      await firebase.auth().sendPasswordResetEmail(ADMIN_EMAIL);
-      status("Password reset email sent.");
-    } catch (error) {
-      console.error(error);
-      status(friendlyError(error), true);
-    }
-  });
-});
+if (!email || !password) {
+
+status(
+"Enter your email and password.",
+true
+);
+
+return;
+}
+
+
+// --------------------------------------
+// ADMIN EMAIL AUTHORIZATION
+// --------------------------------------
+
+if (
+email !== ADMIN_EMAIL.toLowerCase()
+) {
+
+status(
+"This email is not authorized for the Admin Panel.",
+true
+);
+
+return;
+}
+
+
+// --------------------------------------
+// DISABLE LOGIN BUTTON
+// --------------------------------------
+
+if (loginButton) {
+
+loginButton.disabled = true;
+
+loginButton.textContent =
+"Signing in...";
+}
+
+
+status(
+"Connecting to Firebase..."
+);
+
+
+try {
+
+// ------------------------------------
+// LOGIN PERSISTENCE
+// ------------------------------------
+
+await setPersistence(
+auth,
+rememberInput && rememberInput.checked
+? browserLocalPersistence
+: browserSessionPersistence
+);
+
+
+// ------------------------------------
+// FIREBASE LOGIN
+// ------------------------------------
+
+const result =
+await signInWithEmailAndPassword(
+auth,
+email,
+password
+);
+
+
+// ------------------------------------
+// LOGGED-IN USER
+// ------------------------------------
+
+const user =
+result.user;
+
+
+// ------------------------------------
+// FINAL EMAIL SECURITY CHECK
+// ------------------------------------
+
+const loggedInEmail =
+(user.email || "")
+.trim()
+.toLowerCase();
+
+
+if (
+loggedInEmail !== ADMIN_EMAIL.toLowerCase()
+) {
+
+await auth.signOut();
+
+status(
+"This Firebase account is not authorized for the Admin Panel.",
+true
+);
+
+return;
+}
+
+
+// ------------------------------------
+// SAVE LOGIN STATE
+// ------------------------------------
+
+localStorage.setItem(
+"adminEmail",
+loggedInEmail
+);
+
+localStorage.setItem(
+"adminLoggedIn",
+"true"
+);
+
+
+// ------------------------------------
+// SUCCESS
+// ------------------------------------
+
+status(
+"Login successful. Opening Admin Panel..."
+);
+
+
+// ------------------------------------
+// OPEN ADMIN DASHBOARD
+// ------------------------------------
+
+window.location.href =
+"./admin-dashboard.html";
+
+} catch (error) {
+
+console.error(
+"Admin login error:",
+error
+);
+
+
+status(
+friendlyError(error),
+true
+);
+
+
+} finally {
+
+if (loginButton) {
+
+loginButton.disabled = false;
+
+loginButton.textContent =
+"Login";
+}
+
+}
+
+}
+);
+
+}
+
+
+// ==========================================
+// PASSWORD RESET
+// ==========================================
+
+if (resetButton) {
+
+resetButton.addEventListener(
+"click",
+async () => {
+
+// ------------------------------------
+// GET EMAIL
+// ------------------------------------
+
+const email =
+emailInput
+? emailInput.value.trim().toLowerCase()
+: "";
+
+
+// ------------------------------------
+// VALIDATE EMAIL
+// ------------------------------------
+
+if (!email) {
+
+status(
+"Enter your admin email first.",
+true
+);
+
+if (emailInput) {
+emailInput.focus();
+}
+
+return;
+}
+
+
+// ------------------------------------
+// ADMIN EMAIL CHECK
+// ------------------------------------
+
+if (
+email !== ADMIN_EMAIL.toLowerCase()
+) {
+
+status(
+"Use the Admin email address.",
+true
+);
+
+return;
+}
+
+
+try {
+
+// ----------------------------------
+// SEND RESET EMAIL
+// ----------------------------------
+
+await sendPasswordResetEmail(
+auth,
+email
+);
+
+
+status(
+"Password reset email sent. Check your inbox."
+);
+
+
+} catch (error) {
+
+console.error(
+"Password reset error:",
+error
+);
+
+
+status(
+friendlyError(error),
+true
+);
+
+}
+
+}
+);
+
+}
